@@ -80,6 +80,39 @@ downloadBtn.onAdd = function() {
 };
 
 downloadBtn.addTo(map);
+   // 5. ADD "LOCATE ME" BUTTON
+const locateBtn = L.control({position: 'topleft'});
+
+locateBtn.onAdd = function() {
+    const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+    div.innerHTML = '<button style="padding: 5px; cursor: pointer;">🎯 Find Me</button>';
+    
+    div.onclick = function(e) {
+        e.stopPropagation(); // Prevents clicking the button from dropping a marker
+        
+        map.locate({setView: true, maxZoom: 16});
+    };
+    return div;
+};
+
+locateBtn.addTo(map);
+
+// 6. Handle what happens when the GPS finds you
+map.on('locationfound', function(e) {
+    const radius = e.accuracy / 2;
+
+    // Remove old location markers if they exist
+    if (window.currentLoc) { map.removeLayer(window.currentLoc); map.removeLayer(window.currentAcc); }
+
+    window.currentAcc = L.circle(e.latlng, radius).addTo(map);
+    window.currentLoc = L.marker(e.latlng).addTo(map)
+        .bindPopup(`You are within ${radius.toFixed(0)} meters of this point`).openPopup();
+});
+
+// Handle GPS errors (like if the user denies permission)
+map.on('locationerror', function(e) {
+    alert("GPS access denied or not found.");
+});
     </script>
 </body>
 </html>
