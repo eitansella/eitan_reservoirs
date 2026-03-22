@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced AI-GIS App</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+
+    <style>
+        body, html, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    
+    <script>
+        // 1. Layers Setup
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' });
+const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' });
+
+const map = L.map('map', {
+    center: [33.14287, 35.73134],
+    zoom: 13,
+    layers: [osm]
+});
+
+L.control.layers({ "Standard": osm, "Satellite": satellite }).addTo(map);
+L.Control.geocoder({ defaultMarkGeocode: true }).addTo(map);
+
+// --- NEW STUFF STARTS HERE ---
+
+// 2. Create a "Storage Bin" for our points
+let collectedPoints = {
+    "type": "FeatureCollection",
+    "features": []
+};
+
+// 3. Updated Click Function: Add markers AND save data
+map.on('click', function(e) {
+    const coords = [e.latlng.lng, e.latlng.lat]; // GeoJSON uses [Lng, Lat] order!
+    
+    // Add marker to map
+    L.marker(e.latlng).addTo(map).bindPopup("Point Saved!").openPopup();
+
+    // Add data to our storage bin
+    collectedPoints.features.push({
+        "type": "Feature",
+        "geometry": { "type": "Point", "coordinates": coords },
+        "properties": { "timestamp": new Date().toISOString() }
+    });
+    
+    console.log("Points in memory:", collectedPoints.features.length);
+});
+
+// 4. Create a custom "Download" button on the map
+const downloadBtn = L.control({position: 'topleft'});
+
+downloadBtn.onAdd = function() {
+    const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+    div.innerHTML = '<button style="padding: 5px; cursor: pointer;">💾 Export GeoJSON</button>';
+    
+    div.onclick = function() {
+        if(collectedPoints.features.length === 0) return alert("Click the map to add points first!");
+        
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(collectedPoints));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "my_map_data.geojson");
+        document.body.appendChild(downloadAnchorNode); 
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    };
+    return div;
+};
+
+downloadBtn.addTo(map);
+    </script>
+</body>
+</html>
